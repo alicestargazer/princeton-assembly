@@ -20,7 +20,7 @@ body {
 }
 .middlepane {
     width: 37%;
-    height: 100%;
+    height: 90%;
     float: left;
     border-collapse: collapse;
 }

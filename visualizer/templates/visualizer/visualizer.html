@@ -1,4 +1,4 @@
-{% load staticfiles %} 
+{% load staticfiles %}
 <link rel="stylesheet" type="text/css" href="{% static 'visualizer/style.css' %}" />
 <a href="{% url 'visualizer:index' %}">Return to Index</a>
 <div class="container">
@@ -169,11 +169,10 @@
       <br/>{{ constant.label }}: {{ constant.val }}
     {% endfor %}
     <br/><br/>
-    <b>MEMORY: </b>(Note that hex addresses below are not real memory addresses)
-    <br/><br/>
+    (Note that hex addresses below are not real memory addresses)
     <table >
       <tr>
-        <th class="outside">SECTION</th>
+        <th class="outside">MEM SECTION</th>
         <th class="outside">decimal/string value</th>
         <th class="outside"> <b>ADDR</b></th>
       </tr>

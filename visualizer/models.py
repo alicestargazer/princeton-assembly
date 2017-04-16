@@ -15,7 +15,8 @@ class Problem(models.Model):
     # @models.permalink
     # def get_absolute_url(self):
     #     return 'blog:post', (self.slug,)
-
+    class Meta:
+        ordering = ['id']
     def __str__(self):
         problem_name="Problem #{0}".format(str(self.number))
         return problem_name
@@ -248,7 +249,7 @@ class Stack(models.Model):
     val = models.CharField(max_length=50, blank=True)
 
     class Meta:
-        ordering = ['-id']
+        ordering = ['id']
 
 class Eflag(models.Model):
     problem = models.ForeignKey(Problem, on_delete=models.CASCADE)
@@ -263,17 +264,26 @@ class Rodata(models.Model):
     val = models.CharField(max_length=50, blank=True)
     label = models.CharField(max_length=50, blank=True)
 
+    class Meta:
+        ordering = ['id']
+
 class Data(models.Model): #.globl, .byte, .word, etc.
     problem = models.ForeignKey(Problem, on_delete=models.CASCADE)
     val = models.CharField(max_length=50, blank=True)
     name = models.CharField(max_length=50, blank=True) #address
     label = models.CharField(max_length=50, blank=True)
 
+    class Meta:
+        ordering = ['id']
+
 class BSS(models.Model): #.skip
     problem = models.ForeignKey(Problem, on_delete=models.CASCADE)
     name = models.CharField(max_length=50, blank=True) #address
     val = models.CharField(max_length=50, blank=True) #value at address
     label = models.CharField(max_length=50, blank=True) #label pointing to memory
+
+    class Meta:
+        ordering = ['id']
 
 class Text(models.Model):
     problem = models.ForeignKey(Problem, on_delete=models.CASCADE)
@@ -286,7 +296,13 @@ class Arg(models.Model):
     val = models.CharField(max_length=50, blank=True) # user input value
     addr = models.CharField(max_length=50, blank=True) # user input value
 
+    class Meta:
+        ordering = ['id']
+
 class Constant(models.Model):
     problem = models.ForeignKey(Problem, on_delete=models.CASCADE)
     label = models.CharField(max_length=50, blank=True) # SOMELABEL
     val = models.CharField(max_length=50, blank=True) #value at somelabel
+
+    class Meta:
+        ordering = ['id']
