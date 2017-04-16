@@ -25,10 +25,7 @@ SECRET_KEY = 'rf^!tiq8dj)2+5ohj#$p)!#04l+*1fa)ks&l_yx9y%%yk^xofd'
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = [
-    'dry-depths-76513.herokuapp.com',
-    '127.0.0.1',
-]
+ALLOWED_HOSTS = ['*']
 
 
 # Application definition
@@ -79,11 +76,11 @@ WSGI_APPLICATION = 'assembly.wsgi.application'
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'architecture',
-        'USER': 'alicexie',
-        'PASSWORD': 'Bbang1482!',
-        'HOST': '127.0.0.1',
+        'ENGINE': 'django.db.backends.postgresql_psycopg2',
+        'NAME': 'd4eh0os3m741lb',
+        'USER': 'qmcnekqzogcnsi',
+        'PASSWORD': 'c63cf00f1e0a66bc13cd249b302b9791eedc4a9b548237e778b322290f59a325',
+        'HOST': 'ec2-54-235-181-120.compute-1.amazonaws.com',
         'PORT': '5432',
     }
 }
@@ -91,6 +88,9 @@ DATABASES = {
 import dj_database_url
 db_from_env = dj_database_url.config(conn_max_age=500)
 DATABASES['default'].update(db_from_env)
+
+# Honor the 'X-Forwarded-Proto' header for request.is_secure()
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
 # Password validation
 # https://docs.djangoproject.com/en/1.11/ref/settings/#auth-password-validators
