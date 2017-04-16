@@ -1,0 +1,17 @@
+<h1>
+  Select a precept problem to walk through:
+</h1>
+
+{% if list_of_problems %}
+    <ul>
+    {% for problem in list_of_problems %}
+    <form action="{% url 'visualizer:reset' problem.id %}" method="post">
+    {% csrf_token %}
+      <label for="rst" >{{ problem.filename }}: </label>
+      <input id="rst" type="submit" name="reset" value="Reset Problem #{{ problem.id }}" style="font-size:16px;font-family:times;"></input>
+    </form>
+    {% endfor %}
+    </ul>
+{% else %}
+    <p>No problems uploaded yet.</p>
+{% endif %}

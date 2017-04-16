@@ -1,0 +1,95 @@
+
+curr_pk=4
+p=Problem(number=curr_pk, steps=1)
+p.save()
+p=Problem.objects.get(pk=curr_pk)
+eflags=Eflag(cf=False, zf=False, sf=False, of=False, problem_id=curr_pk)
+eflags.save()
+s = Stack(name='0x1000', problem_id=curr_pk)
+s.save()
+r=Register(name="%rax", problem=p)
+r.save()
+r=Register(name="%rbx", problem=p)
+r.save()
+r=Register(name="%rcx", problem=p)
+r.save()
+r=Register(name="%rdx", problem=p)
+r.save()
+r=Register(name="%rsi", problem=p)
+r.save()
+r=Register(name="%rdi", problem=p)
+r.save()
+r=Register(name="%rbp", problem=p)
+r.save()
+r=Register(name="%rsp", problem=p)
+r.save()
+r=Register(name="%r8", problem=p)
+r.save()
+r=Register(name="%r9", problem=p)
+r.save()
+r=Register(name="%r10", problem=p)
+r.save()
+r=Register(name="%r11", problem=p)
+r.save()
+r=Register(name="%r12", problem=p)
+r.save()
+r=Register(name="%r13", problem=p)
+r.save()
+r=Register(name="%r14", problem=p)
+r.save()
+r=Register(name="%r15", problem=p)
+r.save()
+r=Register(name="%eax", problem=p)
+r.save()
+r=Register(name="%r15", problem=p)
+r.save()
+r=Register(name="%r15", problem=p)
+r.save()
+r=Register(name="%r15", problem=p)
+r.save()
+r=Register(name="%r15", problem=p)
+r.save()
+r=Register(name="%r15", problem=p)
+r.save()
+r=Register(name="%r15", problem=p)
+r.save()
+r=Register(name="%r15", problem=p)
+r.save()
+r=Register(name="%r15", problem=p)
+r.save()
+r=Register(name="%r15", problem=p)
+r.save()
+r=Register(name="%r15", problem=p)
+r.save()
+r=Register(name="%r15", problem=p)
+r.save()
+r=Register(name="%r15", problem=p)
+r.save()
+r=Register(name="%r15", problem=p)
+r.save()
+r=Register(name="%r15", problem=p)
+r.save()
+r=Register(name="%r15", problem=p)
+r.save()
+
+<table ><tr><td>
+  <b>{{ register }}</b>: {% if not register.is_stack_pointer %}{{ register.content }}{% else %}{{ register.to_hex.0 }}{% endif %}
+  <table class="inner"><tr><td>
+    <b>{{ register.longName }}</b>: {% if not register.is_stack_pointer %}{{ register.fourByte }}{% else %}{{ register.to_hex.1 }}{% endif %}
+    <table class="inner"><tr><td>
+      <b>{{ register.wordName }}</b>: {% if not register.is_stack_pointer %}{{ register.twoByte }}{% else %}{{ register.to_hex.2 }}{% endif %}
+      <table class="inner"><tr><td>
+        <b>{{ register.byteName }}</b>: {% if not register.is_stack_pointer %}{{ register.oneByte }}{% else %}{{ register.to_hex.3 }}{% endif %}
+      </td></tr></table>
+    </td></tr></table>
+  </td></tr></table>
+</td></tr></table>
+
+{# {% for arg in problem.arg_set.all %}
+<form action="{% url 'visualizer:userinput' problem.id arg.id %}" method="post">
+  {% csrf_token %}
+  <label for="tofill">{{ arg.regname}}: </label>
+  <input id="tofill" type="text" name="userinput" value="{{ problem.id }}#{{ arg.id }}">
+  <input type="submit" value="OK">
+</form>
+{% endfor %}#}

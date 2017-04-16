@@ -1,0 +1,93 @@
+
+GENERAL REGISTERS:
+<table class="wider">
+  {% for register in problem.register_set.all %}
+      {% if problem.current_instruction.src == register.name %}
+      <tr bgcolor="#EEE8AA" >
+        <td>{{ register.eightVal }}</td>
+        <td class="outside" >
+          <div class="textbox"><b>{{ register }} ({{ register.getType }}) </b>
+            <span class="textboxtext">
+              <<span class="ib-half">{{ register.longName }}: {{ register.fourVal }} </span>
+              <span class="ib-half">{{ register.wordName }}: {{ register.twoVal }} </span>
+              <span class="ib-half">{{ register.byteName }}: {{ register.oneVal }} </span>
+            </span>
+          </div>
+        </td>
+      </tr>
+      {% endif %}
+      {% if problem.current_instruction.dest == register.name %}
+      <tr bgcolor="#EEE8AA" >
+        <td>{{ register.eightVal }}</td>
+        <td class="outside" >
+          <div class="textbox"><b>{{ register }} ({{ register.getType }}) </b>
+            <span class="textboxtext">
+              <span class="ib-half">{{ register.longName }}: {{ register.fourVal }} </span>
+              <span class="ib-half">{{ register.wordName }}: {{ register.twoVal }} </span>
+              <span class="ib-half">{{ register.byteName }}: {{ register.oneVal }} </span>
+            </span>
+          </div>
+        </td>
+      </tr>
+      {% else %}
+      <tr >
+        <td>{{ register.eightVal }}</td>
+        <td class="outside" >
+          <div class="textbox"><b>{{ register }} ({{ register.getType }}) </b>
+            <span class="textboxtext">
+              <span class="ib-half">{{ register.longName }}: {{ register.fourVal }} </span>
+              <span class="ib-half">{{ register.wordName }}: {{ register.twoVal }} </span>
+              <span class="ib-half">{{ register.byteName }}: {{ register.oneVal }} </span>
+            </span>
+          </div>
+        </td>
+      </tr>
+      {% endif %}
+  {% endfor %}
+</table>
+</div>
+<div class="rightpane">
+<table class="stack">
+  {% for string in problem.text_set.all %}
+  <tr>
+    <td class="outside">{% if string.id == problem.id_lowest_text  %} TEXT {% endif %}</td>
+    <td>{{ string.val }}</td>
+    <td class="outside"> <b>500</b></td>
+  </tr>
+  {% endfor %}
+  {% for string in problem.rodata_set.all %}
+  <tr>
+    <td class="outside">{% if string.id == problem.id_lowest_rodata %} RODATA {% endif %}</td>
+    <td>{{ string.val }}</td>
+    <td class="outside"><b>{{ string.name }}</b></td>
+    <td class="outside"> {% if string.label %} &larr; {{ string.label }} {%endif%}</td>
+  </tr>
+  {% endfor %}
+  {% for string in problem.data_set.all %}
+  <tr>
+    <td class="outside">{% if string.id == problem.id_lowest_data  %} DATA {% endif %}</td>
+    <td>{{ string.val }}</td>
+    <td class="outside"><b>{{ string.name }}</b></td>
+    <td class="outside"> {% if string.label %} &larr; {{ string.label }} {%endif%}</td>
+  </tr>
+  {% endfor %}
+  {% for string in problem.bss_set.all %}
+  <tr>
+    <td class="outside">{% if string.id == problem.id_lowest_bss  %} BSS {% endif %}</td>
+    <td>{{ string.val }}</td>
+    <td class="outside"><b>{{ string.name }}</b></td>
+    <td class="outside"> {% if string.label %} &larr; {{ string.label }} {%endif%}</td>
+  </tr>
+  {% endfor %}
+</table>
+<br/>
+Stack:
+<table class="stack">
+  {% for addr in problem.stack_set.all %}
+  <tr>
+    <td>{{ addr.val }}</td>
+    <td class="outside"><b>{{ addr.name }}</b></td>
+    <td class="outside">{% if addr.name == "1000" %} &lArr; %rsp {% endif %}</td>
+  </tr>
+  {% endfor %}
+</table>
