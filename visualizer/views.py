@@ -416,7 +416,6 @@ def animate(request, problem_id, instruction_id):
             b.val = output_var.val
             b.save()
             rax = problem.register_set.get(name="%rax")
-            problem.stdout = problem.stdout + str(output_var.val) + "\n"
             mov("l", rax, "1", problem)
         elif src == "abs":
             edi_val = getVal("%edi", problem)
@@ -429,7 +428,6 @@ def animate(request, problem_id, instruction_id):
         elif src == "getchar":
             char = problem.arg_set.get(name="cInput")
             stdin = char.val
-            problem.stdout = problem.stdout + str(char.val) + "\n"
             rax = problem.register_set.get(name="%rax")
             mov("l", rax, str(ord(stdin)), problem)
         elif src == "putchar": # int putchar(int char)

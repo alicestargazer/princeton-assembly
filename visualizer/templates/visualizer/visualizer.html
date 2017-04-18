@@ -10,12 +10,9 @@
       </form></h3>
   </div>
   <div class="leftpane">
-    <b>StdIn: </b>
-    {% for arg in problem.arg_set.all %}
-      {{ arg.val }}
-    {% endfor %}
-    <br/>
-    {% if problem.current_line > problem.steps %} <b>Reached End of Code</b> <br/><br/>{% else %}
+    {% if problem.current_line > problem.steps %} <b>Reached End of Code</b> (function return value: 
+    {% if problem.current_line == problem.steps|add:"1" %}{% for register in problem.register_set.all %}{%if register.name == "%rax" %}{{ register.fourVal}}{%endif%}{%endfor%}{%endif%})<br/><br/>
+    {% else %}
     <form action="{% url 'visualizer:animate' problem.id problem.current_line %}" method="post">
     {% csrf_token %}
       <b>Next Instruction:</b> <input type="submit" name="instruction" value="Line #{{ problem.current_line }}">
@@ -52,9 +49,11 @@
         {% endfor %}
       </table>
     </div>
-    <br/><b>StdOut: </b>{{ problem.stdout|linebreaksbr }}
-    <b>Return Value: </b>
-    {% if problem.current_line == problem.steps|add:"1" %}{% for register in problem.register_set.all %}{%if register.name == "%rax" %}{{ register.fourVal}}{%endif%}{%endfor%}{%endif%}
+    <b>Stdin: </b>
+    {% for arg in problem.arg_set.all %}
+      {{ arg.val }}
+    {% endfor %}
+    <br/><b>Stdout: </b>{{ problem.stdout|linebreaksbr }}
     <br/><b>Description:</b> {{ problem.current_instruction.get_description }}
   </div>
   <div class="divider">
@@ -82,7 +81,6 @@
     <br/>
     {% endif %}
     <b>GENERAL REGISTERS: (Note that values in cells are hexidecimal and values by arrows are integers, affected registers are highlighted)</b>
-    TEST: {{ problem.test }}
     <br/><br/>
     <div class="midmid" style="overflow-y: scroll; height:100%;" >
     {% for register in problem.register_set.all %}
