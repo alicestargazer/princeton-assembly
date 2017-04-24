@@ -1,24 +1,30 @@
+<div id="allV">
+
 {% load staticfiles %}
+
 <link rel="stylesheet" type="text/css" href="{% static 'visualizer/style.css' %}" />
-<a href="{% url 'visualizer:index' %}">Return to Index</a>
+<script src="{% static 'visualizer/js/jquery.js' %}"></script>
+<script src="{% static 'visualizer/js/vis-ajax.js' %}"></script>
+
+<a href="{% url 'visualizer:index' %}">Return to Index</a> // Color Coding: <span style="background-color: orange">Current instruction</span>, <span style="background-color: gold">Register/Memory that was changed in previous instruction</span>, <span style="background-color: #EEE8aa">Register/Memory/Stdin value to be used or changed in next instruction</span><span style="background-color: yellow"><br/><b>/NOTE: PLEASE PAUSE BETWEEN INSTRUCTIONS FOR ERROR-FREE WALKTHROUGH/</b></span>
 <div class="container">
   <div class="toppane">
-      <h3><form action="{% url 'visualizer:reset' problem.id %}" method="post">
-      {% csrf_token %}
-        Before stepping through the visualization for problem {{ problem.number }} ({{problem.filename}}):
-        <input id="rst" type="submit" name="reset" value="Reset Problem #{{ problem.id }}" style="font-size:16px;font-family:times;"></input>
-      </form></h3>
+    <h3><form action="{% url 'visualizer:reset' problem.id %}" method="post">
+    {% csrf_token %}
+      Reset problem {{ problem.number }} ({{problem.filename}}) with new user inputs:
+      <input id="rst" type="submit" name="reset" value="Reset Problem #{{ problem.id }}" style="font-size:16px;font-family:times;"></input>
+    </form> </h3>
   </div>
   <div class="leftpane">
-    {% if problem.current_line > problem.steps %} <b>Reached End of Code</b> (function return value: 
-    {% if problem.current_line == problem.steps|add:"1" %}{% for register in problem.register_set.all %}{%if register.name == "%rax" %}{{ register.fourVal}}{%endif%}{%endfor%}{%endif%})<br/><br/>
-    {% else %}
-    <form action="{% url 'visualizer:animate' problem.id problem.current_line %}" method="post">
-    {% csrf_token %}
-      <b>Next Instruction:</b> <input type="submit" name="instruction" value="Line #{{ problem.current_line }}">
-    </form>
-    {% endif %}
-    <div class="midleft" style="overflow-y: scroll; height:75%;" >
+    <i>Current user inputs &lt;Stdin&gt;: </i>
+    {% for arg in problem.arg_set.all %}
+      {% if problem.current_instruction.src == "scanf" and problem.stdin_label == arg.name or problem.current_instruction.src == "getchar" %}
+        <span style="background-color: #EEE8aa">{{ arg.val }}</span>
+      {% else %}
+        {{ arg.val }}
+      {% endif %}
+    {% endfor %}
+    <div class="midleft" id="myscroll" style="overflow-y: scroll; height:83%; position:static;" >
       <table class="instr">
         <tr>
           <th>#</th>
@@ -30,7 +36,7 @@
         </tr>
         {% for instruction in problem.instruction_set.all %}
           {% if instruction.num == problem.current_line %}
-          <tr bgcolor="#EEE8AA" class="instr">
+          <tr bgcolor="orange" class="instr">
             <td>{{ instruction.num }}</td>
             <td>{{ instruction.label }}</td>
             <td>{{ instruction.name }}</td>
@@ -49,43 +55,72 @@
         {% endfor %}
       </table>
     </div>
-    <b>Stdin: </b>
-    {% for arg in problem.arg_set.all %}
-      {{ arg.val }}
-    {% endfor %}
-    <br/><b>Stdout: </b>{{ problem.stdout|linebreaksbr }}
-    <br/><b>Description:</b> {{ problem.current_instruction.get_description }}
+    <i>Current user output &lt;Stdout&gt;: </i>{{ problem.stdout|linebreaksbr }} <br/>
+    <hr width="90%" align="left" color=grey >
+    {% if problem.current_line <= problem.steps %}
+    <form action="{% url 'visualizer:animate' problem.id problem.current_line %}" method="post" data-id-a="{{problem.id}}" data-id-b={{problem.current_line}} id='next'>
+    {% csrf_token %}
+      <input href="javascript:void(0);" type="submit" name="instruction" value="Execute line #{{ problem.current_line }}" style="font-size:16px;font-family:times;background-color:orange;" data-done-ref="{% url 'visualizer:animate' problem.id problem.current_line %}" >
+    </form>
+    {% endif %}
+    <b>Description:</b> {{ problem.current_instruction.get_description }}
+    {% if problem.current_line > problem.steps %} Reached End of Code <br/> <b>Return Value: </b>
+    {% if problem.current_line == problem.steps|add:"1" %}{% for register in problem.register_set.all %}{%if register.name == "%rax" %}{{ register.fourVal}}{%endif%}{%endfor%}{%endif%}
+    {% else %}
+    {% endif %}
+
+
   </div>
   <div class="divider">
 
   </div>
   <div class="middlepane">
-    {% if "cmp" in problem.current_instruction.name or "j" in problem.current_instruction.name %}
-    EFLAG Registers (only CF, ZF, SF, OF are shown):
-    <table >
-      <tr>
-        <th class="outside"><b>CF</b></th>
-        <th class="outside"><b>ZF</b></th>
-        <th class="outside"><b>SF</b></th>
-        <th class="outside"><b>OF</b></th>
-      </tr>
-      <tr>
-        {% for flag in problem.eflag_set.all %}
-          <td>{{ flag.cf }}</td>
-          <td>{{ flag.zf }}</td>
-          <td>{{ flag.sf }}</td>
-          <td>{{ flag.of }}</td>
-        {% endfor %}
-      </tr>
-    </table>
-    <br/>
+    {% if "cmp" in problem.current_instruction.name %}
+      EFLAG Registers (only CF, ZF, SF, OF are shown):
+      <table  bgcolor="#EEE8aa">
+        <tr>
+          <th class="outside"><b>CF</b></th>
+          <th class="outside"><b>ZF</b></th>
+          <th class="outside"><b>SF</b></th>
+          <th class="outside"><b>OF</b></th>
+        </tr>
+        <tr>
+          {% for flag in problem.eflag_set.all %}
+            <td>{{ flag.cf }}</td>
+            <td>{{ flag.zf }}</td>
+            <td>{{ flag.sf }}</td>
+            <td>{{ flag.of }}</td>
+          {% endfor %}
+        </tr>
+      </table>
+      <br/>
+    {% elif "j" in problem.current_instruction.name and not problem.current_instruction.name == "jmp" %}
+      EFLAG Registers (only CF, ZF, SF, OF are shown):
+      <table  bgcolor="gold">
+        <tr>
+          <th class="outside"><b>CF</b></th>
+          <th class="outside"><b>ZF</b></th>
+          <th class="outside"><b>SF</b></th>
+          <th class="outside"><b>OF</b></th>
+        </tr>
+        <tr>
+          {% for flag in problem.eflag_set.all %}
+            <td>{{ flag.cf }}</td>
+            <td>{{ flag.zf }}</td>
+            <td>{{ flag.sf }}</td>
+            <td>{{ flag.of }}</td>
+          {% endfor %}
+        </tr>
+      </table>
+      <br/>
     {% endif %}
-    <b>GENERAL REGISTERS: (Note that values in cells are hexidecimal and values by arrows are integers, affected registers are highlighted)</b>
+    <b>GENERAL REGISTERS: </b><br/>
+    <i>Cell values are hexidecimal and values pointed to by arrows are decimal</i>
     <br/><br/>
-    <div class="midmid" style="overflow-y: scroll; height:100%;" >
+    <div class="midmid" id="regscroll" style="overflow-y: scroll; height:100%;" >
     {% for register in problem.register_set.all %}
-      {% if problem.current_instruction.src == register.name or problem.current_instruction.src == register.longName or problem.current_instruction.src == register.wordName or problem.current_instruction.src == register.byteName %}
-        <table class="register" bgcolor="#EEE8AA">
+      {% if problem.prev_instruction.src == "printf" and register.name == "%rax" or problem.prev_instruction.name == "ret" and register.name == "%rax" or problem.prev_instruction.src == "abs" and register.name == "%rax" or problem.prev_instruction.src == "scanf" and register.name == "%rax" or problem.prev_instruction.src == "getchar" and register.name == "%rax" or problem.prev_instruction.src == "putchar" and register.name == "%rax"  or  problem.prev_instruction.name == "imulq" and register.name == "%rdx" or  problem.prev_instruction.name == "imulq" and register.name == "%rax" %}
+        <table class="register" bgcolor="gold">
           <tr >
             <td colspan="4" class="bottom" width="50%" class="above">{{ register }} &rarr; {{ register.eightVal }}</td>
           </tr>
@@ -95,11 +130,59 @@
           </tr>
           <tr>
             <td class="noborder"></td><td class="noborder"></td>
-            <td colspan="2" class="bottom" width="25%" class="above">{{ register.wordName }} &rarr; {{ register.twoVal }}</td>
+            <td colspan="2" class="bottom" width="28%" class="above">{{ register.wordName }} &rarr; {{ register.twoVal }}</td>
           </tr>
           <tr>
             <td class="noborder"></td><td class="noborder"></td><td class="noborder"></td>
-            <td class="bottom" width="12.5%" class="above">{{ register.byteName }} &rarr; {{ register.oneVal }}</td>
+            <td class="bottom" width="14%" class="above">{{ register.byteName }} &rarr; {{ register.oneVal }}</td>
+          </tr>
+          <tr>
+            <td class="bigger">{{ register.eightByte }}</td>
+            <td class="bigger">{{ register.fourByte }}</td>
+            <td class="bigger">{{ register.twoByte }}</td>
+            <td class="bigger">{{ register.oneByte }}</td>
+        </table>
+        </br>
+      {% elif problem.prev_instruction.dest == register.name or problem.prev_instruction.dest == register.longName or problem.prev_instruction.dest == register.wordName or problem.prev_instruction.dest == register.byteName %}
+        <table class="register" bgcolor="gold">
+          <tr >
+            <td colspan="4" class="bottom" width="50%" class="above">{{ register }} &rarr; {{ register.eightVal }}</td>
+          </tr>
+          <tr>
+            <td class="noborder"></td>
+            <td colspan="3" class="bottom" width="50%" class="above">{{ register.longName }} &rarr; {{ register.fourVal }}</td>
+          </tr>
+          <tr>
+            <td class="noborder"></td><td class="noborder"></td>
+            <td colspan="2" class="bottom" width="28%" class="above">{{ register.wordName }} &rarr; {{ register.twoVal }}</td>
+          </tr>
+          <tr>
+            <td class="noborder"></td><td class="noborder"></td><td class="noborder"></td>
+            <td class="bottom" width="14%" class="above">{{ register.byteName }} &rarr; {{ register.oneVal }}</td>
+          </tr>
+          <tr>
+            <td class="bigger">{{ register.eightByte }}</td>
+            <td class="bigger">{{ register.fourByte }}</td>
+            <td class="bigger">{{ register.twoByte }}</td>
+            <td class="bigger">{{ register.oneByte }}</td>
+        </table>
+        </br>
+      {% elif problem.current_instruction.src == register.name or problem.current_instruction.src == register.longName or problem.current_instruction.src == register.wordName or problem.current_instruction.src == register.byteName or problem.current_instruction.src == "abs" and register.name == "%rax" or problem.current_instruction.src == "printf" and register.name == "%rax" or problem.current_instruction.src == "getchar" and register.name == "%rax" or problem.current_instruction.src == "putchar" and register.name == "%rax" or  problem.current_instruction.name == "imulq" and register.name == "%rdx" or  problem.current_instruction.name == "imulq" and register.name == "%rax" %}
+        <table class="register" bgcolor="#EEE8aa">
+          <tr >
+            <td colspan="4" class="bottom" width="50%" class="above">{{ register }} &rarr; {{ register.eightVal }}</td>
+          </tr>
+          <tr>
+            <td class="noborder"></td>
+            <td colspan="3" class="bottom" width="50%" class="above">{{ register.longName }} &rarr; {{ register.fourVal }}</td>
+          </tr>
+          <tr>
+            <td class="noborder"></td><td class="noborder"></td>
+            <td colspan="2" class="bottom" width="28%" class="above">{{ register.wordName }} &rarr; {{ register.twoVal }}</td>
+          </tr>
+          <tr>
+            <td class="noborder"></td><td class="noborder"></td><td class="noborder"></td>
+            <td class="bottom" width="14%" class="above">{{ register.byteName }} &rarr; {{ register.oneVal }}</td>
           </tr>
           <tr>
             <td class="bigger">{{ register.eightByte }}</td>
@@ -110,7 +193,7 @@
         </table>
         </br>
       {% elif problem.current_instruction.dest == register.name or problem.current_instruction.dest == register.longName or problem.current_instruction.dest == register.wordName or problem.current_instruction.dest == register.byteName %}
-        <table bgcolor="#EEE8AA">
+        <table class="register" bgcolor="#EEE8aa">
           <tr >
             <td colspan="4" class="bottom" width="50%" class="above">{{ register }} &rarr; {{ register.eightVal }}</td>
           </tr>
@@ -120,21 +203,22 @@
           </tr>
           <tr>
             <td class="noborder"></td><td class="noborder"></td>
-            <td colspan="2" class="bottom" width="25%" class="above">{{ register.wordName }} &rarr; {{ register.twoVal }}</td>
+            <td colspan="2" class="bottom" width="28%" class="above">{{ register.wordName }} &rarr; {{ register.twoVal }}</td>
           </tr>
           <tr>
             <td class="noborder"></td><td class="noborder"></td><td class="noborder"></td>
-            <td class="bottom" width="12.5%" class="above">{{ register.byteName }} &rarr; {{ register.oneVal }}</td>
+            <td class="bottom" width="14%" class="above">{{ register.byteName }} &rarr; {{ register.oneVal }}</td>
           </tr>
           <tr>
             <td class="bigger">{{ register.eightByte }}</td>
             <td class="bigger">{{ register.fourByte }}</td>
             <td class="bigger">{{ register.twoByte }}</td>
             <td class="bigger">{{ register.oneByte }}</td>
+          </tr>
         </table>
         </br>
       {% else %}
-        <table >
+        <table class="register">
           <tr >
             <td colspan="4" class="bottom" width="50%" class="above">{{ register }} &rarr; {{ register.eightVal }}</td>
           </tr>
@@ -144,17 +228,18 @@
           </tr>
           <tr>
             <td class="noborder"></td><td class="noborder"></td>
-            <td colspan="2" class="bottom" width="25%" class="above">{{ register.wordName }} &rarr; {{ register.twoVal }}</td>
+            <td colspan="2" class="bottom" width="28%" class="above">{{ register.wordName }} &rarr; {{ register.twoVal }}</td>
           </tr>
           <tr>
             <td class="noborder"></td><td class="noborder"></td><td class="noborder"></td>
-            <td class="bottom" width="12.5%" class="above">{{ register.byteName }} &rarr; {{ register.oneVal }}</td>
+            <td class="bottom" width="14%" class="above">{{ register.byteName }} &rarr; {{ register.oneVal }}</td>
           </tr>
           <tr>
             <td class="bigger">{{ register.eightByte }}</td>
             <td class="bigger">{{ register.fourByte }}</td>
             <td class="bigger">{{ register.twoByte }}</td>
             <td class="bigger">{{ register.oneByte }}</td>
+          </tr>
         </table>
         </br>
       {% endif %}
@@ -164,20 +249,25 @@
   <div class="rightpane">
     <b>CONSTANTS: </b>
     {% for constant in problem.constant_set.all %}
-      <br/>{{ constant.label }}: {{ constant.val }}
+      {% if constant.label == problem.prev_instruction.src %}
+        <span style="background-color: gold"><br/>{{ constant.label }}: {{ constant.val }}</span>
+      {% elif problem.current_instruction.src|slice:"1:" == constant.label %}
+        <span style="background-color: #EEE8aa"><br/>{{ constant.label }}: {{ constant.val }}</span>
+      {% else %}
+        <br/>{{ constant.label }}: {{ constant.val }}
+      {% endif %}
     {% endfor %}
     <br/><br/>
-    (Note that hex addresses below are not real memory addresses)
     <table >
       <tr>
         <th class="outside">MEM SECTION</th>
-        <th class="outside">decimal/string value</th>
-        <th class="outside"> <b>ADDR</b></th>
+        <th class="outside">DECIMAL/STRING VALUE</th>
+        <th class="outside"> <b>HEX ADDR</b></th>
       </tr>
       {% for string in problem.text_set.all %}
       <tr>
-        {% if ".text" in problem.current_instruction.src %}
-          <td bgcolor="#EEE8AA" class="outside">{% if string.id == problem.id_lowest_text  %} TEXT {% endif %}</td>
+        {% if ".text" in problem.prev_instruction.src %}
+          <td bgcolor="gold" class="outside">{% if string.id == problem.id_lowest_text  %} TEXT {% endif %}</td>
         {% else %}
           <td class="outside">{% if string.id == problem.id_lowest_text  %} TEXT {% endif %}</td>
         {% endif %}
@@ -187,23 +277,41 @@
       {% endfor %}
       {% for string in problem.rodata_set.all %}
       <tr>
-        {% if ".rodata" in problem.current_instruction.src or ".string" in problem.current_instruction.name or "scanf" in problem.current_instruction.src %}
-          <td bgcolor="#EEE8AA" class="outside">{% if string.id == problem.id_lowest_rodata  %} RODATA {% endif %}</td>
+        {% if ".rodata" in problem.prev_instruction.src %}
+          <td bgcolor="gold" class="outside">{% if string.id == problem.id_lowest_rodata  %} RODATA {% endif %}</td>
         {% else %}
           <td class="outside">{% if string.id == problem.id_lowest_rodata  %} RODATA {% endif %}</td>
         {% endif %}
-        <td>{{ string.val }}</td>
-        <td class="outside"><b>{{ string.name }}</b></td>
-        <td class="outside"> {% if string.label %} &larr; {{ string.label }} {%endif%}</td>
+        {% if ".string" in problem.prev_instruction.name and problem.prev_instruction.label == string.label %}
+          <td bgcolor="gold" >{{ string.val }}</td>
+          <td bgcolor="gold" class="outside"><b>{{ string.name }}</b></td>
+          <td bgcolor="gold" class="outside"> {% if string.label %} &larr; {{ string.label }} {%endif%}</td>
+        {% elif problem.current_instruction.src|slice:"1:" == string.label and not string.label == "" %}
+          <td bgcolor="#EEE8aa" >{{ string.val }}</td>
+          <td bgcolor="#EEE8aa" class="outside"><b>{{ string.name }}</b></td>
+          <td bgcolor="#EEE8aa" class="outside"> {% if string.label %} &larr; {{ string.label }} {%endif%}</td>
+        {% else %}
+          <td>{{ string.val }}</td>
+          <td class="outside"><b>{{ string.name }}</b></td>
+          <td class="outside"> {% if string.label %} &larr; {{ string.label }} {%endif%}</td>
+        {% endif %}
       </tr>
       {% endfor %}
       {% for string in problem.data_set.all %}
       <tr>
-        <td class="outside">{% if string.id == problem.id_lowest_data  %} DATA {% endif %}</td>
-        {% if ".data" in problem.current_instruction.src  or string.label == problem.current_instruction.src %}
-          <td bgcolor="#EEE8AA">{{ string.val }}</td>
-          <td bgcolor="#EEE8AA" class="outside"><b>{{ string.name }}</b></td>
-          <td bgcolor="#EEE8AA" class="outside"> {% if string.label %} &larr; {{ string.label }} {%endif%}</td>
+        {% if ".data" in problem.prev_instruction.src %}
+          <td bgcolor="gold" class="outside">{% if string.id == problem.id_lowest_data  %} DATA {% endif %}</td>
+        {% else %}
+          <td class="outside">{% if string.id == problem.id_lowest_data  %} DATA {% endif %}</td>
+        {% endif %}
+        {% if ".quad" in problem.prev_instruction.name and problem.prev_instruction.label == string.label or problem.prev_instruction.dest == string.label and not string.label == "" %}
+          <td bgcolor="gold">{{ string.val }}</td>
+          <td bgcolor="gold" class="outside"><b>{{ string.name }}</b></td>
+          <td bgcolor="gold" class="outside"> {% if string.label %} &larr; {{ string.label }} {%endif%}</td>
+        {% elif problem.current_instruction.src|slice:"1:" == string.label and not string.label == "" or problem.current_instruction.src == string.label and not string.label == "" or problem.current_instruction.dest == string.label and not string.label == "" %}
+          <td bgcolor="#EEE8aa" >{{ string.val }}</td>
+          <td bgcolor="#EEE8aa" class="outside"><b>{{ string.name }}</b></td>
+          <td bgcolor="#EEE8aa" class="outside"> {% if string.label %} &larr; {{ string.label }} {%endif%}</td>
         {% else %}
           <td >{{ string.val }}</td>
           <td class="outside"><b>{{ string.name }}</b></td>
@@ -213,18 +321,20 @@
       {% endfor %}
       {% for string in problem.bss_set.all %}
       <tr>
-        {% if ".bss" in problem.current_instruction.src or ".skip" in problem.current_instruction.name or "scanf" in problem.current_instruction.src %}
-          <td bgcolor="#EEE8AA" class="outside">{% if string.id == problem.id_lowest_bss  %} BSS {% endif %}</td>
-          <td>{{ string.val }}</td>
-          <td class="outside"><b>{{ string.name }}</b></td>
-          <td class="outside"> {% if string.label %} &larr; {{ string.label }} {%endif%}</td>
-        {% elif string.label == problem.current_instruction.src %}
-          <td bgcolor="#EEE8AA" class="outside">{% if string.id == problem.id_lowest_bss  %} BSS {% endif %}</td>
-          <td bgcolor="#EEE8AA">{{ string.val }}</td>
-          <td bgcolor="#EEE8AA" class="outside"><b>{{ string.name }}</b></td>
-          <td bgcolor="#EEE8AA" class="outside"> {% if string.label %} &larr; {{ string.label }} {%endif%}</td>
+        {% if ".bss" in problem.prev_instruction.src %}
+          <td bgcolor="gold" class="outside">{% if string.id == problem.id_lowest_bss  %} BSS {% endif %}</td>
         {% else %}
           <td class="outside">{% if string.id == problem.id_lowest_bss  %} BSS {% endif %}</td>
+        {% endif %}
+        {% if ".skip" in problem.prev_instruction.name and string.label == problem.prev_instruction.label or problem.prev_instruction.src == "scanf" and problem.stdin_label == string.label or problem.prev_instruction.dest == string.label and not string.label == "" or problem.prev_instruction.src == string.label and not string.label == "" and "inc" in problem.prev_instruction.name %}
+          <td bgcolor="gold">{{ string.val }}</td>
+          <td bgcolor="gold" class="outside"><b>{{ string.name }}</b></td>
+          <td bgcolor="gold" class="outside"> {% if string.label %} &larr; {{ string.label }} {%endif%}</td>
+        {% elif problem.current_instruction.src|slice:"1:" == string.label and not string.label == "" or problem.current_instruction.src == "scanf" and problem.stdin_label == string.label or problem.current_instruction.src == string.label and not string.label == "" or problem.current_instruction.dest == string.label and not string.label == "" %}
+          <td bgcolor="#EEE8aa" >{{ string.val }}</td>
+          <td bgcolor="#EEE8aa" class="outside"><b>{{ string.name }}</b></td>
+          <td bgcolor="#EEE8aa" class="outside"> {% if string.label %} &larr; {{ string.label }} {%endif%}</td>
+        {% else %}
           <td>{{ string.val }}</td>
           <td class="outside"><b>{{ string.name }}</b></td>
           <td class="outside"> {% if string.label %} &larr; {{ string.label }} {%endif%}</td>
@@ -240,6 +350,9 @@
       </tr>
       {% endfor %}
     </table>
+    <i>Hex addresses above are not real memory addresses</i>
     <br/>
   </div>
+</div>
+
 </div>

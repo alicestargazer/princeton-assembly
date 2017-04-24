@@ -1,41 +1,42 @@
 <div style="width: 100%;">
-  <div style="float:left; width: 50%;">
+  <div style="float:left; width: 47%;">
+    <a href="{% url 'visualizer:index' %}">Return to Index</a> <br/>
     Code from {{ problem.filename }} (for your reference):
     <pre>{{ problem.ccode }}</pre>
   </div>
-  <div style="float:left;">
+  <div style="float:left; width: 53%;">
     {% if problem.id == 1 %}
-    No user inputs required: <a href="{% url 'visualizer:visualizer' problem.id %}">Go to Problem #{{ problem.id }}</a>
+    No user inputs required: <a href="{% url 'visualizer:animate' problem.id 1 %}">Go to Problem #{{ problem.id }}</a>
     {% else  %}
-    <b>The following variables need to be filled in before walking through the above code: </b><br/>
+    <b>The following values are read in through Stdin and need to be specified before walkthrough: </b><br/>
       {% for arg in problem.arg_set.all %}
-        {{ arg.name }} <br/>
+        {{ arg.name }} ({{ arg.text }}) <br/>
       {% endfor %}
     <br/>
     {% endif %}
     {% if problem.id == 2 %}
-    <b>Fill in all user inputs (press Enter button or click Submit to submit): </b>
+    <b>Enter all user inputs (return on keyboard or click button below): </b>
     <form action="{% url 'visualizer:absvalform' problem.id %}" method="post">
         {% csrf_token %}
         {{ form.as_p }}
         <input type="submit" value="Submit" />
     </form>
     {% elif problem.id == 3 %}
-    <b>Fill in all spaces (press Enter button or click Submit to submit): </b>
+    <b>Enter all blank spaces (return on keyboard or click button below): </b>
     <form action="{% url 'visualizer:uppercaseform' problem.id %}" method="post">
         {% csrf_token %}
         {{ form.as_p }}
         <input type="submit" value="Submit" />
     </form>
     {% elif problem.id == 4 %}
-    <b>Fill in all spaces (press Enter button or click Submit to submit): </b>
+    <b>Enter all blank spaces (return on keyboard or click button below): </b>
     <form action="{% url 'visualizer:rectform' problem.id %}" method="post">
         {% csrf_token %}
         {{ form.as_p }}
         <input type="submit" value="Submit" />
     </form>
     {% elif problem.id == 5 %}
-    <b>Fill in all spaces (press Enter button or click Submit to submit): </b>
+    <b>Enter all blank spaces (return on keyboard or click button below): </b>
     <form action="{% url 'visualizer:powerform' problem.id %}" method="post">
         {% csrf_token %}
         {{ form.as_p }}

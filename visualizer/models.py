@@ -40,6 +40,10 @@ class Problem(models.Model):
     def id_lowest_stack(self):
         stack = self.stack_set.order_by("id")[0]
         return stack.id
+    def stdin_label(self):
+        rdi = self.register_set.get(name="%rsi")
+        b = self.bss_set.get(name=hex(int(rdi.content, 16))[2:])
+        return b.label
 
 
 # how to deal with different data types of each register???? <----------

@@ -20,7 +20,7 @@ body {
 }
 .middlepane {
     width: 37%;
-    height: 90%;
+    height: 100%;
     float: left;
     border-collapse: collapse;
 }
@@ -36,12 +36,12 @@ body {
 table.instr {
   font-family: times;
   font-size: 12px;
-  width: 80%;
+  width: 99%;
 }
 table.register {
   font-family: times;
   font-size: 12px;
-  width: 80%;
+  width: 100%;
 }
 td, th {
     border: 2px solid #dddddd;
@@ -54,7 +54,7 @@ td, th {
   border-bottom: solid;
   border-width: .5px;
   border-color: orange;
-  font-size: 10;
+  font-size: 12;
   border-right: none;
   border-top: none;
   border-left: none;

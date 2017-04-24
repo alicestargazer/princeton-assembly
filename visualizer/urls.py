@@ -8,8 +8,8 @@ app_name = 'visualizer'
 # # visualizer/[whatever is matched by the regex]
 # # url(regex, view, kwargs=None, name=None)
 urlpatterns = [
-    url(r'^$', views.IndexView.as_view(), name='index'), # /visualizer/
-    url(r'^(?P<pk>[-\w]+)/$', views.VisualizerView.as_view(), name='visualizer'),
+    url(r'^$', views.IndexView.as_view(), name='index'),
+    # url(r'^(?P<pk>[-\w]+)/$', views.VisualizerView.as_view(), name='visualizer'),
     url(r'^(?P<problem_id>[0-9]+)/animate/(?P<instruction_id>[0-9]+)/$', views.animate, name='animate'),
     url(r'^(?P<problem_id>[0-9]+)/reset/$', views.reset, name='reset'),
     url(r'^(?P<pk>[0-9]+)/hello/$', views.HelloView.as_view(), name='hello'),

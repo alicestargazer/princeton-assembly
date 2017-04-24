@@ -1,3 +1,8 @@
+{% load staticfiles %}
+<script src="{% static 'visualizer/js/jquery.js' %}"></script>
+<script src="{% static 'visualizer/js/vis-ajax.js' %}"></script>
+
+<div id="all">
 <h1>
   Select a precept problem to walk through:
 </h1>
@@ -15,3 +20,7 @@
 {% else %}
     <p>No problems uploaded yet.</p>
 {% endif %}
+
+
+{# <input type="submit" id="prob" data-prob-id="{{ problem.id }}" data-done-ref="{% url 'visualizer:index' %}" value="Click Me"></input>#}
+</div>

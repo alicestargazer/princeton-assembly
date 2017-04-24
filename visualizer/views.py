@@ -3,10 +3,11 @@ from django.shortcuts import render
 # Create your views here.
 from django.http import HttpResponse
 from django.template import loader
+from django.template.loader import render_to_string
 from django.http import HttpResponseRedirect
 from django.urls import reverse
 from django.views import generic
-from django.http import Http404
+from django.http import Http404, JsonResponse
 from django.shortcuts import render, get_object_or_404
 from .models import Problem, Instruction, Register, Stack, Eflag, Rodata, Data, BSS, Text, Arg, Constant
 from .forms import AbsvalForm, PowerForm, UppercaseForm, RectForm
@@ -42,7 +43,7 @@ def absvalform(request, problem_id):
             a.addr = '4000'
             a.val=iInput_val
             a.save()
-            return HttpResponseRedirect(reverse('visualizer:visualizer', args=(problem_id, )))
+            return HttpResponseRedirect(reverse('visualizer:animate', args=(problem_id, 1)))
     else:
         form = AbsvalForm()
     return render(request, 'visualizer/user.html', {'form':form});
@@ -68,7 +69,7 @@ def uppercaseform(request, problem_id):
             a = Arg.objects.get(name="cInput", problem_id=problem_id)
             a.val=cInput_val
             a.save()
-            return HttpResponseRedirect(reverse('visualizer:visualizer', args=(problem_id, )))
+            return HttpResponseRedirect(reverse('visualizer:animate', args=(problem_id, 1)))
     else:
         form = UppercaseForm()
     return render(request, 'visualizer/user.html', {'form':form});
@@ -98,7 +99,7 @@ def rectform(request, problem_id):
             a = Arg.objects.get(name="iWidth", problem_id=problem_id)
             a.val=iWidth_val
             a.save()
-            return HttpResponseRedirect(reverse('visualizer:visualizer', args=(problem_id, )))
+            return HttpResponseRedirect(reverse('visualizer:animate', args=(problem_id, 1)))
     else:
         form = RectForm()
     return render(request, 'visualizer/user.html', {'form':form});
@@ -128,7 +129,7 @@ def powerform(request, problem_id):
             a = Arg.objects.get(name="lExp", problem_id=problem_id)
             a.val=lExp_val
             a.save()
-            return HttpResponseRedirect(reverse('visualizer:visualizer', args=(problem_id, )))
+            return HttpResponseRedirect(reverse('visualizer:animate', args=(problem_id, 1)))
     else:
         form = PowerForm()
     return render(request, 'visualizer/user.html', {'form':form});
@@ -376,261 +377,267 @@ def setMem(value, dest, problem):
                     addr.save()
 
 def animate(request, problem_id, instruction_id):
-    problem = get_object_or_404(Problem, pk=problem_id)
-    curr_num = int(request.POST['instruction'].split('#')[1])
-    curr_instruction = problem.instruction_set.get(num=curr_num)
-    eflags = problem.eflag_set.get(problem_id=problem_id)
-    name = curr_instruction.name # mov
-    suffix = name[-1:] # q
-    src = curr_instruction.src # $0
-    dest = curr_instruction.dest # %eax
-    if curr_instruction.label: someLabel = curr_instruction.label # someLabel
-    if name == "call":
-        if src == "printf":
-            rdi_addr = getVal("%rdi", problem)
-            if int(rdi_addr, 16) >= int('0x2000', 16) and int(rdi_addr, 16) < int('0x3000', 16):
-                string = problem.rodata_set.get(name=hex(int(rdi_addr, 16))[2:])
-            if problem.register_set.all().filter(name="%rsi").exists():
-                rsi = getVal("%rsi", problem)
-            if problem.register_set.all().filter(name="%rdx").exists():
-                rdx = getVal("%rdx", problem)
-            if problem.register_set.all().filter(name="%rcx").exists():
-                rcx = getVal("%rcx", problem)
-            total_cnt = string.val.count("%d") + string.val.count("%ld")
-            if total_cnt == 0:
-                output = string.val[1:-1]
-            elif total_cnt == 1:
-                output = string.val[1:-1] % int(rsi, 16)
-            elif total_cnt == 2:
-                output = string.val[1:-1] % (int(rsi, 16), int(rdx, 16))
-            elif total_cnt == 3:
-                output = string.val[1:-1] % (int(rsi, 16), int(rdx, 16), int(rcx, 16))
-            rax = problem.register_set.get(name="%rax")
-            problem.stdout = problem.stdout + output
-            mov("l", rax, str(len(output)-2), problem)
-        elif src == "scanf": #fix
-            rdi_addr = getVal("%rdi", problem) # 202a
-            rsi_addr = getVal("%rsi", problem) # 3000
-            output_var= problem.arg_set.get(addr=hex(int(rsi_addr, 16))[2:])
-            b = problem.bss_set.get(name=hex(int(rsi_addr, 16))[2:])
-            b.val = output_var.val
-            b.save()
-            rax = problem.register_set.get(name="%rax")
-            mov("l", rax, "1", problem)
-        elif src == "abs":
-            edi_val = getVal("%edi", problem)
-            x = int(edi_val, 16)
-            if x > 0x7FFFFFFF:
-                x -= 0x100000000
-            abs_val = str(abs(x))
-            rax = problem.register_set.get(name="%rax")
-            mov("l", rax, abs_val, problem)
-        elif src == "getchar":
-            char = problem.arg_set.get(name="cInput")
-            stdin = char.val
-            rax = problem.register_set.get(name="%rax")
-            mov("l", rax, str(ord(stdin)), problem)
-        elif src == "putchar": # int putchar(int char)
-            edi = getVal("%edi", problem) # int char
-            char_val = chr(int(edi, 16)) # output character
-            problem.test = char_val
-            problem.stdout = problem.stdout + char_val
-            rax = problem.register_set.get(name="%rax")
-            rdi = problem.register_set.get(name="%rdi")
-            rax.content = rdi.content
-            rax.save()
-        next_line = curr_instruction.num + 1
-    elif name == ".skip":
-        if not problem.bss_set.all().filter(label=someLabel).exists() or  problem.bss_set.order_by("-name")[0].label == someLabel:
-            mem = problem.bss_set.order_by("-name")[0]
-            new_addr = int(mem.name, 16)+int(src)
-            mem.label = someLabel
-            mem.save()
-            b = BSS(name=hex(new_addr)[2:], problem_id=problem_id, val=' ')
-            b.save()
-        next_line = curr_instruction.num + 1
-    elif name == ".byte":
-        if not problem.data_set.all().filter(label=someLabel).exists() or  problem.bss_set.order_by("-name")[0].label == someLabel:
-            mem = problem.data_set.order_by("-name")[0]
-            new_addr = int(mem.name, 16)+1
-            mem.label = someLabel
-            mem.val = int(src)
-            mem.save()
-            d = Data(name=hex(new_addr)[2:], problem_id=problem_id, val=' ')
-            d.save()
-        next_line = curr_instruction.num + 1
-    elif name == ".quad":
-        if not problem.data_set.all().filter(label=someLabel).exists() or  problem.bss_set.order_by("-name")[0].label == someLabel:
-            mem = problem.data_set.order_by("-name")[0]
-            new_addr = int(mem.name, 16)+8
-            mem.label = someLabel
-            mem.val = int(src)
-            mem.save()
-            d = Data(name=hex(new_addr)[2:], problem_id=problem_id, val=' ')
-            d.save()
-        next_line = curr_instruction.num + 1
-    elif name == ".long":
-        if not problem.data_set.all().filter(label=someLabel).exists() or  problem.bss_set.order_by("-name")[0].label == someLabel:
-            mem = problem.data_set.order_by("-name")[0]
-            new_addr = int(mem.name, 16)+4
-            mem.label = someLabel
-            mem.val = int(src)
-            mem.save()
-            d = Data(name=hex(new_addr)[2:], problem_id=problem_id, val=' ')
-            d.save()
-        next_line = curr_instruction.num + 1
-    elif name == ".word":
-        if not problem.data_set.all().filter(label=someLabel).exists() or  problem.bss_set.order_by("-name")[0].label == someLabel:
-            mem = problem.data_set.order_by("-name")[0]
-            new_addr = int(mem.name, 16)+2
-            mem.label = someLabel
-            mem.val = int(src)
-            mem.save()
-            d = Data(name=hex(new_addr)[2:], problem_id=problem_id, val=' ')
-            d.save()
-        next_line = curr_instruction.num + 1
-    elif name == ".section":
-        next_line = curr_instruction.num + 1
-    elif name == ".string":
-        rod = problem.rodata_set.order_by("-name")[0]
-        new_addr = int(rod.name, 16)+len(src)
-        rod.val=src
-        rod.label=someLabel
-        rod.save()
-        r = Rodata(val=' ', problem_id=problem_id, name=hex(new_addr)[2:])
-        r.save()
-        next_line = curr_instruction.num + 1
-    elif name == ".equ":
-        c = Constant(problem_id=problem_id, label=src, val=dest)
-        c.save()
-        next_line = curr_instruction.num + 1
-    elif "ret" in name:
-        next_line = curr_instruction.num + 1
-    elif "cmp" in name:
-        srcVal = getVal(src, problem)
-        eflags = Eflag.objects.get(problem_id=problem_id)
-        destVal = getVal(dest, problem)
-        if int(destVal, 16) - int(srcVal) == 0: # dest = src
-            eflags.zf = 1
-            eflags.sf = 0
-            eflags.cf = 0
-        elif int(destVal, 16) - int(srcVal) > 0: # dest > src
-            eflags.zf = 0
-            eflags.sf = 0
-            eflags.cf = 1
-        elif int(destVal, 16) - int(srcVal) < 0: # dest < src
-            eflags.zf = 0
-            eflags.sf = 1
-            eflags.cf = 0
-        eflags.save()
-        next_line = curr_instruction.num + 1
-    elif name.startswith("j"): # all jumps
-        if name == "jg":
-            if not (eflags.sf or eflags.of) and not eflags.zf:
-                for instr in problem.instruction_set.all():
-                    if instr.label == src:
-                        next_line = instr.num
-            else:
-                next_line = curr_instruction.num + 1
-        elif name == "jge":
-            if not (eflags.sf or eflags.of):
-                for instr in problem.instruction_set.all():
-                    if instr.label == src:
-                        next_line = instr.num
-            else:
-                next_line = curr_instruction.num + 1
-        elif name == "jmp":
-            for instr in problem.instruction_set.all():
-                if instr.label == src:
-                    next_line = instr.num
-        else:
+    problem = Problem.objects.get(pk=problem_id)
+    context = {'problem': problem}
+    if request.is_ajax() and request.POST:
+        problem_id = request.POST.get('probnum')
+        curr_num = request.POST.get('currline')
+        problem = get_object_or_404(Problem, pk=problem_id)
+        curr_instruction = problem.instruction_set.get(num=curr_num)
+        eflags = problem.eflag_set.get(problem_id=problem_id)
+        name = curr_instruction.name # mov
+        suffix = name[-1:] # q
+        src = curr_instruction.src # $0
+        dest = curr_instruction.dest # %eax
+        if curr_instruction.label: someLabel = curr_instruction.label # someLabel
+        if name == "call":
+            if src == "printf":
+                rdi_addr = getVal("%rdi", problem)
+                if int(rdi_addr, 16) >= int('0x2000', 16) and int(rdi_addr, 16) < int('0x3000', 16):
+                    string = problem.rodata_set.get(name=hex(int(rdi_addr, 16))[2:])
+                if problem.register_set.all().filter(name="%rsi").exists():
+                    rsi = getVal("%rsi", problem)
+                if problem.register_set.all().filter(name="%rdx").exists():
+                    rdx = getVal("%rdx", problem)
+                if problem.register_set.all().filter(name="%rcx").exists():
+                    rcx = getVal("%rcx", problem)
+                total_cnt = string.val.count("%d") + string.val.count("%ld")
+                if total_cnt == 0:
+                    output = string.val[1:-1]
+                elif total_cnt == 1:
+                    output = string.val[1:-1] % int(rsi, 16)
+                elif total_cnt == 2:
+                    output = string.val[1:-1] % (int(rsi, 16), int(rdx, 16))
+                elif total_cnt == 3:
+                    output = string.val[1:-1] % (int(rsi, 16), int(rdx, 16), int(rcx, 16))
+                rax = problem.register_set.get(name="%rax")
+                problem.stdout = problem.stdout + output
+                mov("l", rax, str(len(output)-2), problem)
+            elif src == "scanf": #fix
+                rdi_addr = getVal("%rdi", problem) # 202a
+                rsi_addr = getVal("%rsi", problem) # 3000
+                output_var= problem.arg_set.get(addr=hex(int(rsi_addr, 16))[2:])
+                b = problem.bss_set.get(name=hex(int(rsi_addr, 16))[2:])
+                b.val = output_var.val
+                b.save()
+                rax = problem.register_set.get(name="%rax")
+                mov("l", rax, "1", problem)
+            elif src == "abs":
+                edi_val = getVal("%edi", problem)
+                x = int(edi_val, 16)
+                if x > 0x7FFFFFFF:
+                    x -= 0x100000000
+                abs_val = str(abs(x))
+                rax = problem.register_set.get(name="%rax")
+                mov("l", rax, abs_val, problem)
+            elif src == "getchar":
+                char = problem.arg_set.get(name="cInput")
+                stdin = char.val
+                rax = problem.register_set.get(name="%rax")
+                mov("l", rax, str(ord(stdin)), problem)
+            elif src == "putchar": # int putchar(int char)
+                edi = getVal("%edi", problem) # int char
+                char_val = chr(int(edi, 16)) # output character
+                problem.test = char_val
+                problem.stdout = problem.stdout + char_val
+                rax = problem.register_set.get(name="%rax")
+                rdi = problem.register_set.get(name="%rdi")
+                rax.content = rdi.content
+                rax.save()
             next_line = curr_instruction.num + 1
-        eflags.save()
-    elif name == "imulq" and dest == "":
-        srcVal = getVal(src, problem)
-        raxVal = getVal("%rax", problem)
-        new_val = int(raxVal, 16) * int(srcVal)
-        octword = '%032x' % int(new_val)
-        rdx = problem.register_set.get(name="%rdx")
-        rdx.content = octword[0:16]
-        rdx.save()
-        rax = problem.register_set.get(name="%rax")
-        rax.content = octword[16:32]
-        rax.save()
-        next_line = curr_instruction.num + 1
-    elif "inc" in name:
-        srcVal = getVal(src, problem)
-        new_val = str(int(srcVal) + 1)
-        setMem(new_val, src, problem)
-        next_line = curr_instruction.num + 1
-    elif src.startswith("$") and dest.startswith("%"): # immediate to register
-        imm = getVal(src, problem)
-        regname = get_regname(dest) # get r name
-        reg = problem.register_set.get(name=regname)
-        if "mov" in name:
-            mov(suffix, reg, imm, problem)
-        elif "add" in name and "sp" in dest: #deallocate stack <--- REFINE
-            problem.stack_set.exclude(name="1000").delete()
-        elif "add" in name:
-            add(suffix, reg, imm)
-        elif "sal" in name:
-            sal(suffix, reg, imm)
-        elif "sub" in name: #allocate stack
-            sub(suffix, reg, imm, problem_id)
+        elif name == ".skip":
+            if not problem.bss_set.all().filter(label=someLabel).exists() or  problem.bss_set.order_by("-name")[0].label == someLabel:
+                mem = problem.bss_set.order_by("-name")[0]
+                new_addr = int(mem.name, 16)+int(src)
+                mem.label = someLabel
+                mem.save()
+                b = BSS(name=hex(new_addr)[2:], problem_id=problem_id, val=' ')
+                b.save()
+            next_line = curr_instruction.num + 1
+        elif name == ".byte":
+            if not problem.data_set.all().filter(label=someLabel).exists() or  problem.bss_set.order_by("-name")[0].label == someLabel:
+                mem = problem.data_set.order_by("-name")[0]
+                new_addr = int(mem.name, 16)+1
+                mem.label = someLabel
+                mem.val = int(src)
+                mem.save()
+                d = Data(name=hex(new_addr)[2:], problem_id=problem_id, val=' ')
+                d.save()
+            next_line = curr_instruction.num + 1
+        elif name == ".quad":
+            if not problem.data_set.all().filter(label=someLabel).exists() or  problem.bss_set.order_by("-name")[0].label == someLabel:
+                mem = problem.data_set.order_by("-name")[0]
+                new_addr = int(mem.name, 16)+8
+                mem.label = someLabel
+                mem.val = int(src)
+                mem.save()
+                d = Data(name=hex(new_addr)[2:], problem_id=problem_id, val=' ')
+                d.save()
+            next_line = curr_instruction.num + 1
+        elif name == ".long":
+            if not problem.data_set.all().filter(label=someLabel).exists() or  problem.bss_set.order_by("-name")[0].label == someLabel:
+                mem = problem.data_set.order_by("-name")[0]
+                new_addr = int(mem.name, 16)+4
+                mem.label = someLabel
+                mem.val = int(src)
+                mem.save()
+                d = Data(name=hex(new_addr)[2:], problem_id=problem_id, val=' ')
+                d.save()
+            next_line = curr_instruction.num + 1
+        elif name == ".word":
+            if not problem.data_set.all().filter(label=someLabel).exists() or  problem.bss_set.order_by("-name")[0].label == someLabel:
+                mem = problem.data_set.order_by("-name")[0]
+                new_addr = int(mem.name, 16)+2
+                mem.label = someLabel
+                mem.val = int(src)
+                mem.save()
+                d = Data(name=hex(new_addr)[2:], problem_id=problem_id, val=' ')
+                d.save()
+            next_line = curr_instruction.num + 1
+        elif name == ".section":
+            next_line = curr_instruction.num + 1
+        elif name == ".string":
+            rod = problem.rodata_set.order_by("-name")[0]
+            new_addr = int(rod.name, 16)+len(src)
+            rod.val=src
+            rod.label=someLabel
+            rod.save()
+            r = Rodata(val=' ', problem_id=problem_id, name=hex(new_addr)[2:])
+            r.save()
+            next_line = curr_instruction.num + 1
+        elif name == ".equ":
+            c = Constant(problem_id=problem_id, label=src, val=dest)
+            c.save()
+            next_line = curr_instruction.num + 1
+        elif "ret" in name:
+            next_line = curr_instruction.num + 1
         elif "cmp" in name:
-            cmp(suffix, reg, imm, problem_id)
-        next_line = curr_instruction.num + 1
-    elif src.startswith("$"): # immediate to memory
-        imm = getVal(src, problem)
-        if src[1:].isdigit(): # immediate is integer
-            srcVal = src[1:]
-        elif not src[1:].isdigit():
-            if problem.constant_set.all().filter(label=src[1:]).exists():
-                constant = problem.constant_set.get(label=src[1:])
-                srcVal = constant.val
-        if "mov" in name:
-            if problem.bss_set.all().filter(label=dest).exists():
-                bss = problem.bss_set.get(label=dest)
-                bss.val = imm
-                bss.save()
-        elif "add" in name:
-            if not src[1:].isdigit(): # immediate is integer
+            srcVal = getVal(src, problem)
+            eflags = Eflag.objects.get(problem_id=problem_id)
+            destVal = getVal(dest, problem)
+            if int(destVal, 16) - int(srcVal) == 0: # dest = src
+                eflags.zf = 1
+                eflags.sf = 0
+                eflags.cf = 0
+            elif int(destVal, 16) - int(srcVal) > 0: # dest > src
+                eflags.zf = 0
+                eflags.sf = 0
+                eflags.cf = 1
+            elif int(destVal, 16) - int(srcVal) < 0: # dest < src
+                eflags.zf = 0
+                eflags.sf = 1
+                eflags.cf = 0
+            eflags.save()
+            next_line = curr_instruction.num + 1
+        elif name.startswith("j"): # all jumps
+            if name == "jg":
+                if not (eflags.sf or eflags.of) and not eflags.zf:
+                    for instr in problem.instruction_set.all():
+                        if instr.label == src:
+                            next_line = instr.num
+                else:
+                    next_line = curr_instruction.num + 1
+            elif name == "jge":
+                if not (eflags.sf or eflags.of):
+                    for instr in problem.instruction_set.all():
+                        if instr.label == src:
+                            next_line = instr.num
+                else:
+                    next_line = curr_instruction.num + 1
+            elif name == "jmp":
+                for instr in problem.instruction_set.all():
+                    if instr.label == src:
+                        next_line = instr.num
+            else:
+                next_line = curr_instruction.num + 1
+            eflags.save()
+        elif name == "imulq" and dest == "":
+            srcVal = getVal(src, problem)
+            raxVal = getVal("%rax", problem)
+            new_val = int(raxVal, 16) * int(srcVal)
+            octword = '%032x' % int(new_val)
+            rdx = problem.register_set.get(name="%rdx")
+            rdx.content = octword[0:16]
+            rdx.save()
+            rax = problem.register_set.get(name="%rax")
+            rax.content = octword[16:32]
+            rax.save()
+            next_line = curr_instruction.num + 1
+        elif "inc" in name:
+            srcVal = getVal(src, problem)
+            new_val = str(int(srcVal) + 1)
+            setMem(new_val, src, problem)
+            next_line = curr_instruction.num + 1
+        elif src.startswith("$") and dest.startswith("%"): # immediate to register
+            imm = getVal(src, problem)
+            regname = get_regname(dest) # get r name
+            reg = problem.register_set.get(name=regname)
+            if "mov" in name:
+                mov(suffix, reg, imm, problem)
+            elif "add" in name and "sp" in dest: #deallocate stack <--- REFINE
+                problem.stack_set.exclude(name="1000").delete()
+            elif "add" in name:
+                add(suffix, reg, imm)
+            elif "sal" in name:
+                sal(suffix, reg, imm)
+            elif "sub" in name: #allocate stack
+                sub(suffix, reg, imm, problem_id)
+            elif "cmp" in name:
+                cmp(suffix, reg, imm, problem_id)
+            next_line = curr_instruction.num + 1
+        elif src.startswith("$"): # immediate to memory
+            imm = getVal(src, problem)
+            if src[1:].isdigit(): # immediate is integer
+                srcVal = src[1:]
+            elif not src[1:].isdigit():
+                if problem.constant_set.all().filter(label=src[1:]).exists():
+                    constant = problem.constant_set.get(label=src[1:])
+                    srcVal = constant.val
+            if "mov" in name:
                 if problem.bss_set.all().filter(label=dest).exists():
                     bss = problem.bss_set.get(label=dest)
-                    new_val = int(bss.val)+int(imm)
-                    bss.val=str(new_val)
+                    bss.val = imm
                     bss.save()
-        # mem = mem[content]
-        next_line = curr_instruction.num + 1
-    elif src.startswith("%") and dest.startswith("%"): # register to register
-        regSrc = problem.register_set.get(name=src)
-        reg = problem.register_set.get(name=dest)
-        if "mov" in name:
-            mov(suffix, reg, getVal(regSrc), problem)
-        if "add" in name: #dest = dest + src
-            add(suffix, reg, getVal(regSrc))
-        next_line = curr_instruction.num + 1
-    elif src.startswith("%"): # register to memory
-        srcVal = int(getVal(src, problem), 16)
-        setMem(srcVal, dest, problem)
-        next_line = curr_instruction.num + 1
-    elif dest.startswith("%"): # memory to register
-        srcVal = getVal(src, problem) #"-5"
-        regname = get_regname(dest)
-        reg = problem.register_set.get(name=regname)
-        if "movsb" in name:
-            movsb(reg, srcVal, problem)
-        elif "mov" in name:
-            mov(suffix, reg, srcVal, problem)
-        elif "add" in name:
-            add(suffix, reg, srcVal)
-        reg.save()
-        next_line = curr_instruction.num + 1
+            elif "add" in name:
+                if not src[1:].isdigit(): # immediate is integer
+                    if problem.bss_set.all().filter(label=dest).exists():
+                        bss = problem.bss_set.get(label=dest)
+                        new_val = int(bss.val)+int(imm)
+                        bss.val=str(new_val)
+                        bss.save()
+            # mem = mem[content]
+            next_line = curr_instruction.num + 1
+        elif src.startswith("%") and dest.startswith("%"): # register to register
+            regSrc = problem.register_set.get(name=src)
+            reg = problem.register_set.get(name=dest)
+            if "mov" in name:
+                mov(suffix, reg, getVal(regSrc), problem)
+            if "add" in name: #dest = dest + src
+                add(suffix, reg, getVal(regSrc))
+            next_line = curr_instruction.num + 1
+        elif src.startswith("%"): # register to memory
+            srcVal = int(getVal(src, problem), 16)
+            setMem(srcVal, dest, problem)
+            next_line = curr_instruction.num + 1
+        elif dest.startswith("%"): # memory to register
+            srcVal = getVal(src, problem) #"-5"
+            regname = get_regname(dest)
+            reg = problem.register_set.get(name=regname)
+            if "movsb" in name:
+                movsb(reg, srcVal, problem)
+            elif "mov" in name:
+                mov(suffix, reg, srcVal, problem)
+            elif "add" in name:
+                add(suffix, reg, srcVal)
+            reg.save()
+            next_line = curr_instruction.num + 1
+        else:
+            next_line = curr_instruction.num + 1
+        problem.current_line = next_line
+        problem.save()
+        return render(request, 'visualizer/visualizer.html', {'problem': problem});
     else:
-        next_line = curr_instruction.num + 1
-    problem.current_line = next_line
-    problem.save()
-    return HttpResponseRedirect(reverse('visualizer:visualizer', args=(problem.id, )))
+        return render(request, 'visualizer/visualizer.html', context)
 
 def reset(request, problem_id):
     curr_pk = int(request.POST['reset'].split('#')[1])
