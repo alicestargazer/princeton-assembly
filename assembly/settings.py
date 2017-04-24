@@ -24,9 +24,9 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SECRET_KEY = 'rf^!tiq8dj)2+5ohj#$p)!#04l+*1fa)ks&l_yx9y%%yk^xofd'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = False
 
-ALLOWED_HOSTS = ['127.0.0.1', 'localhost', 'https://princeton-assembly.herokuapp.com/']
+ALLOWED_HOSTS = ['127.0.0.1', 'localhost', u'princeton-assembly.herokuapp.com']
 
 
 # Application definition
