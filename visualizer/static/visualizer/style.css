@@ -35,7 +35,7 @@ body {
 /* applies to tables, cells, header cells */
 table.instr {
   font-family: times;
-  font-size: 12px;
+  font-size: 10px;
   width: 99%;
 }
 table.register {
@@ -45,8 +45,8 @@ table.register {
 }
 td, th {
     border: 2px solid #dddddd;
-    padding: 2px;
-    font-size: 14;
+    /*padding: 2px;*/
+    font-size: 12;
 }
 
 /* applies to register section */

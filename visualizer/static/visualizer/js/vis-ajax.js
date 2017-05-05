@@ -52,9 +52,15 @@ $(document).ready(function() {
                 currline: $('#next').attr('data-id-b'),
             },
             success: function(data) {
-                $("#allV").html(data);
-                $("#myscroll").scrollTop( position );
-                $("#regscroll").scrollTop( reg_position );
+              if (position >= 466) {
+                  $("#allV").html(data);
+                  $("#myscroll").scrollTop( position );
+                  $("#regscroll").scrollTop( reg_position );
+              } else {
+                  $("#allV").html(data);
+                  $("#myscroll").scrollTop( position );
+                  $("#regscroll").scrollTop( reg_position );
+              }
             },
             error: function(xhr, textStatus, errorThrown) {
                 alert("Please report this error: "+errorThrown+xhr.status+xhr.responseText);
